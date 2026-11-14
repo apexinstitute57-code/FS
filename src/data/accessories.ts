@@ -1,36 +1,63 @@
 import { AccessoryProduct } from '../types/laptop';
+import mouseWirelessErgoImg from '../assets/images/mouse_wireless_ergo_1794566243988.jpg';
+import mouseRgbGamingImg from '../assets/images/mouse_rgb_gaming_1794566244381.jpg';
+import mouseBluetoothSlimImg from '../assets/images/mouse_bluetooth_slim_1794566241880.jpg';
+import mouseUsbOpticalImg from '../assets/images/mouse_usb_optical_1794566244269.jpg';
+import mouseHpWirelessImg from '../assets/images/mouse_hp_wireless_1794566244817.jpg';
+import mouseDellProImg from '../assets/images/mouse_dell_pro_1794566244413.jpg';
+import mouseLogitechGImg from '../assets/images/mouse_logitech_g_1794566245873.jpg';
+import mouseLenovoThinkImg from '../assets/images/mouse_lenovo_think_1794566246425.jpg';
+import mouseEsportsLightImg from '../assets/images/mouse_esports_light_1794566246470.jpg';
+
+import kbdMechanicalProImg from '../assets/images/kbd_mechanical_pro_1794566246220.jpg';
+import kbdWirelessSlimImg from '../assets/images/kbd_wireless_slim_1794566246193.jpg';
+import kbdRgbGamingImg from '../assets/images/kbd_rgb_gaming_1794566248160.jpg';
+import kbdUsbOfficeImg from '../assets/images/kbd_usb_office_1794566247300.jpg';
+import kbdBluetoothCompactImg from '../assets/images/kbd_bluetooth_compact_1794566247344.jpg';
+import kbdHpBusinessImg from '../assets/images/kbd_hp_business_1794566247396.jpg';
+import kbdDellPremierImg from '../assets/images/kbd_dell_premier_1794566248562.jpg';
+import kbdLogitechMxImg from '../assets/images/kbd_logitech_mx_1794566248231.jpg';
+import kbdLenovoThinkImg from '../assets/images/kbd_lenovo_think_1794566248686.jpg';
+
+import accLaptopBagImg from '../assets/images/acc_laptop_bag_1794566249085.jpg';
+import accLaptopChargerImg from '../assets/images/acc_laptop_charger_1794566249416.jpg';
+import accCoolingPadImg from '../assets/images/acc_cooling_pad_1794566248711.jpg';
+import accHeadphonesImg from '../assets/images/acc_headphones_1794566250227.jpg';
+import accUsbHubImg from '../assets/images/acc_usb_hub_1794566250638.jpg';
+import accMousePadImg from '../assets/images/acc_mouse_pad_1794566250766.jpg';
+import accLaptopStandImg from '../assets/images/acc_laptop_stand_1794566250147.jpg';
 
 export const ACCESSORY_IMAGES = {
   // Mouse Collection (9 unique images)
-  mouseWirelessErgo: '/src/assets/images/mouse_wireless_ergo_1794566243988.jpg',
-  mouseRgbGaming: '/src/assets/images/mouse_rgb_gaming_1794566244381.jpg',
-  mouseBluetoothSlim: '/src/assets/images/mouse_bluetooth_slim_1794566241880.jpg',
-  mouseUsbOptical: '/src/assets/images/mouse_usb_optical_1794566244269.jpg',
-  mouseHpWireless: '/src/assets/images/mouse_hp_wireless_1794566244817.jpg',
-  mouseDellPro: '/src/assets/images/mouse_dell_pro_1794566244413.jpg',
-  mouseLogitechG: '/src/assets/images/mouse_logitech_g_1794566245873.jpg',
-  mouseLenovoThink: '/src/assets/images/mouse_lenovo_think_1794566246425.jpg',
-  mouseEsportsLight: '/src/assets/images/mouse_esports_light_1794566246470.jpg',
+  mouseWirelessErgo: mouseWirelessErgoImg,
+  mouseRgbGaming: mouseRgbGamingImg,
+  mouseBluetoothSlim: mouseBluetoothSlimImg,
+  mouseUsbOptical: mouseUsbOpticalImg,
+  mouseHpWireless: mouseHpWirelessImg,
+  mouseDellPro: mouseDellProImg,
+  mouseLogitechG: mouseLogitechGImg,
+  mouseLenovoThink: mouseLenovoThinkImg,
+  mouseEsportsLight: mouseEsportsLightImg,
 
   // Keyboard Collection (9 unique images)
-  kbdMechanicalPro: '/src/assets/images/kbd_mechanical_pro_1794566246220.jpg',
-  kbdWirelessSlim: '/src/assets/images/kbd_wireless_slim_1794566246193.jpg',
-  kbdRgbGaming: '/src/assets/images/kbd_rgb_gaming_1794566248160.jpg',
-  kbdUsbOffice: '/src/assets/images/kbd_usb_office_1794566247300.jpg',
-  kbdBluetoothCompact: '/src/assets/images/kbd_bluetooth_compact_1794566247344.jpg',
-  kbdHpBusiness: '/src/assets/images/kbd_hp_business_1794566247396.jpg',
-  kbdDellPremier: '/src/assets/images/kbd_dell_premier_1794566248562.jpg',
-  kbdLogitechMx: '/src/assets/images/kbd_logitech_mx_1794566248231.jpg',
-  kbdLenovoThink: '/src/assets/images/kbd_lenovo_think_1794566248686.jpg',
+  kbdMechanicalPro: kbdMechanicalProImg,
+  kbdWirelessSlim: kbdWirelessSlimImg,
+  kbdRgbGaming: kbdRgbGamingImg,
+  kbdUsbOffice: kbdUsbOfficeImg,
+  kbdBluetoothCompact: kbdBluetoothCompactImg,
+  kbdHpBusiness: kbdHpBusinessImg,
+  kbdDellPremier: kbdDellPremierImg,
+  kbdLogitechMx: kbdLogitechMxImg,
+  kbdLenovoThink: kbdLenovoThinkImg,
 
   // Other Accessories (7 unique images)
-  accLaptopBag: '/src/assets/images/acc_laptop_bag_1794566249085.jpg',
-  accLaptopCharger: '/src/assets/images/acc_laptop_charger_1794566249416.jpg',
-  accCoolingPad: '/src/assets/images/acc_cooling_pad_1794566248711.jpg',
-  accHeadphones: '/src/assets/images/acc_headphones_1794566250227.jpg',
-  accUsbHub: '/src/assets/images/acc_usb_hub_1794566250638.jpg',
-  accMousePad: '/src/assets/images/acc_mouse_pad_1794566250766.jpg',
-  accLaptopStand: '/src/assets/images/acc_laptop_stand_1794566250147.jpg',
+  accLaptopBag: accLaptopBagImg,
+  accLaptopCharger: accLaptopChargerImg,
+  accCoolingPad: accCoolingPadImg,
+  accHeadphones: accHeadphonesImg,
+  accUsbHub: accUsbHubImg,
+  accMousePad: accMousePadImg,
+  accLaptopStand: accLaptopStandImg,
 };
 
 export const MOUSE_COLLECTION: AccessoryProduct[] = [

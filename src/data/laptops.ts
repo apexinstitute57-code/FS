@@ -1,4 +1,21 @@
 import { AccessoryProduct, BrandMeta, Laptop, OrderableProduct, PriceCategoryMeta, SpecialCollectionKey } from '../types/laptop';
+import heroFloatingLaptopsImg from '../assets/images/hero_floating_laptops_1794549712380.jpg';
+import hpElitebookImg from '../assets/images/hp_elitebook_silver_1794549712408.jpg';
+import hpProbookImg from '../assets/images/hp_probook_grey_1794549712881.jpg';
+import dellXpsImg from '../assets/images/dell_xps_platinum_1794549713358.jpg';
+import dellLatitudeImg from '../assets/images/dell_latitude_carbon_1794549713812.jpg';
+import lenovoThinkpadImg from '../assets/images/lenovo_thinkpad_black_1794549714539.jpg';
+import lenovoIdeapadImg from '../assets/images/lenovo_ideapad_arctic_1794549713717.jpg';
+import macbookProImg from '../assets/images/macbook_pro_spaceblack_1794549714364.jpg';
+import macbookAirImg from '../assets/images/macbook_air_midnight_1794549714669.jpg';
+import asusRogImg from '../assets/images/asus_rog_gaming_1794549715754.jpg';
+import asusVivobookImg from '../assets/images/asus_vivobook_silver_1794549716165.jpg';
+import acerNitroImg from '../assets/images/acer_nitro_gaming_1794549715801.jpg';
+import acerAspireImg from '../assets/images/acer_aspire_steel_1794549717049.jpg';
+import msiStealthImg from '../assets/images/msi_gaming_stealth_1794549716153.jpg';
+import surfaceLaptopImg from '../assets/images/microsoft_surface_laptop_1794549716666.jpg';
+import samsungGalaxyBookImg from '../assets/images/samsung_galaxy_book_1794549717769.jpg';
+import toshibaDynabookImg from '../assets/images/toshiba_dynabook_clean_1794549736060.jpg';
 
 export const STORE_INFO = {
   name: 'FS SHOP',
@@ -10,25 +27,25 @@ export const STORE_INFO = {
   location: 'Pakistan',
 };
 
-export const HERO_IMAGE = '/src/assets/images/hero_floating_laptops_1794549712380.jpg';
+export const HERO_IMAGE = heroFloatingLaptopsImg;
 
 export const IMAGES = {
-  hpElitebook: '/src/assets/images/hp_elitebook_silver_1794549712408.jpg',
-  hpProbook: '/src/assets/images/hp_probook_grey_1794549712881.jpg',
-  dellXps: '/src/assets/images/dell_xps_platinum_1794549713358.jpg',
-  dellLatitude: '/src/assets/images/dell_latitude_carbon_1794549713812.jpg',
-  lenovoThinkpad: '/src/assets/images/lenovo_thinkpad_black_1794549714539.jpg',
-  lenovoIdeapad: '/src/assets/images/lenovo_ideapad_arctic_1794549713717.jpg',
-  macbookPro: '/src/assets/images/macbook_pro_spaceblack_1794549714364.jpg',
-  macbookAir: '/src/assets/images/macbook_air_midnight_1794549714669.jpg',
-  asusRog: '/src/assets/images/asus_rog_gaming_1794549715754.jpg',
-  asusVivobook: '/src/assets/images/asus_vivobook_silver_1794549716165.jpg',
-  acerNitro: '/src/assets/images/acer_nitro_gaming_1794549715801.jpg',
-  acerAspire: '/src/assets/images/acer_aspire_steel_1794549717049.jpg',
-  msiStealth: '/src/assets/images/msi_gaming_stealth_1794549716153.jpg',
-  surfaceLaptop: '/src/assets/images/microsoft_surface_laptop_1794549716666.jpg',
-  samsungGalaxyBook: '/src/assets/images/samsung_galaxy_book_1794549717769.jpg',
-  toshibaDynabook: '/src/assets/images/toshiba_dynabook_clean_1794549736060.jpg',
+  hpElitebook: hpElitebookImg,
+  hpProbook: hpProbookImg,
+  dellXps: dellXpsImg,
+  dellLatitude: dellLatitudeImg,
+  lenovoThinkpad: lenovoThinkpadImg,
+  lenovoIdeapad: lenovoIdeapadImg,
+  macbookPro: macbookProImg,
+  macbookAir: macbookAirImg,
+  asusRog: asusRogImg,
+  asusVivobook: asusVivobookImg,
+  acerNitro: acerNitroImg,
+  acerAspire: acerAspireImg,
+  msiStealth: msiStealthImg,
+  surfaceLaptop: surfaceLaptopImg,
+  samsungGalaxyBook: samsungGalaxyBookImg,
+  toshibaDynabook: toshibaDynabookImg,
 };
 
 export const BRANDS: BrandMeta[] = [
