@@ -18,7 +18,7 @@ import {
   formatPkr,
   getDiscountPercent,
 } from '../data/laptops';
-import { submitCustomerOrder } from '../lib/supabase';
+import { submitOrder } from '../lib/appwrite';
 import { BrandLogo } from './BrandLogo';
 
 interface ProductModalProps {
@@ -105,7 +105,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, onClose }) 
 
     setSubmitting(true);
     try {
-      const result = await submitCustomerOrder({
+      const result = await submitOrder({
         customerName,
         deliveryAddress,
         contactNumber,
@@ -119,7 +119,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, onClose }) 
       if (!result.saved) {
         setErrorMessage(
           result.error ||
-            'Unable to save your order to Supabase right now. Please try again or order via WhatsApp.'
+            'Unable to save your order to Appwrite right now. Please try again or order via WhatsApp.'
         );
         return;
       }
@@ -572,7 +572,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, onClose }) 
                     disabled={submitting}
                     className="w-full h-12 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-sm tracking-wide transition-colors cursor-pointer"
                   >
-                    {submitting ? 'SAVING ORDER TO SUPABASE...' : 'SUBMIT ORDER'}
+                    {submitting ? 'SAVING ORDER TO APPWRITE...' : 'SUBMIT ORDER'}
                   </button>
 
                   <a
@@ -594,7 +594,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, onClose }) 
                   <CheckCircle2 className="w-8 h-8 text-emerald-600 shrink-0" />
                   <div>
                     <p className="text-xs font-semibold text-emerald-700">
-                      Order Saved to Supabase
+                      Order Saved to Appwrite
                     </p>
                     <h2
                       id="product-modal-title"
