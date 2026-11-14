@@ -1,8 +1,14 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { OrderSubmissionResponse } from '../types/laptop';
 
-const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
-const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
+function normalizeSupabaseUrl(raw: string): string {
+  return raw.trim().replace(/^["']|["']$/g, '').replace(/\/+$/, '');
+}
+
+const supabaseUrl = normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL || '');
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '')
+  .trim()
+  .replace(/^["']|["']$/g, '');
 
 function isPlaceholder(value: string): boolean {
   if (!value) return true;
@@ -16,8 +22,19 @@ function isPlaceholder(value: string): boolean {
   );
 }
 
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 export const isSupabaseClientConfigured =
-  !isPlaceholder(supabaseUrl) && !isPlaceholder(supabaseAnonKey);
+  !isPlaceholder(supabaseUrl) &&
+  isValidHttpUrl(supabaseUrl) &&
+  !isPlaceholder(supabaseAnonKey);
 
 let cachedClient: SupabaseClient | null = null;
 
@@ -45,6 +62,19 @@ export interface SubmitOrderInput {
   productCategory: string;
   productPrice: number;
   quantity: number;
+}
+
+function formatSupabaseError(message: string, code?: string): string {
+  if (code === 'PGRST205' || message.includes("Could not find the table 'public.orders'")) {
+    return 'Connected to Supabase, but the "orders" table does not exist yet. Open Supabase Dashboard → SQL Editor → New query, paste supabase-setup.sql, and click Run.';
+  }
+  if (code === '42501' || message.toLowerCase().includes('row-level security')) {
+    return 'Supabase blocked the insert because of Row Level Security (RLS). Re-run supabase-setup.sql in Supabase SQL Editor to create the INSERT policy for "orders".';
+  }
+  if (message.includes('Failed to fetch')) {
+    return 'Network error contacting Supabase from the browser. Verify VITE_SUPABASE_URL is a valid https://...supabase.co URL and check your internet or firewall.';
+  }
+  return `Could not save your order to Supabase: ${message}`;
 }
 
 export async function submitCustomerOrder(
@@ -78,7 +108,50 @@ export async function submitCustomerOrder(
   const totalPrice = productPrice * quantity;
   const createdAt = new Date().toISOString();
 
-  // Path 1: Direct Supabase JS Client (works on Vite local & Netlify static deploys using publishable/anon key + RLS)
+  // Path 1: Server-side proxy (/api/orders -> Express server.ts locally/AI Studio, Netlify Function on Netlify)
+  // Avoids browser CORS/adblocker/network issues ("TypeError: Failed to fetch") and supports server secrets.
+  try {
+    const response = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerName,
+        deliveryAddress,
+        contactNumber,
+        productName,
+        productBrand,
+        productCategory,
+        productPrice,
+        quantity,
+      }),
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const data = (await response.json()) as OrderSubmissionResponse;
+
+      if (response.ok && data.saved) {
+        return data;
+      }
+
+      // Only fall back to browser Supabase client if server-side env vars are unconfigured (503)
+      if (
+        !(response.status === 503 && data.code === 'SUPABASE_NOT_CONFIGURED' && isSupabaseClientConfigured)
+      ) {
+        return {
+          saved: false,
+          error:
+            data.error ||
+            'Could not save order to Supabase. Please check your Supabase configuration.',
+          code: data.code || 'ORDER_SAVE_FAILED',
+        };
+      }
+    }
+  } catch {
+    // Server endpoint unreachable; fall back to direct Supabase browser client if configured
+  }
+
+  // Path 2: Direct Supabase JS Client (publishable/anon key + RLS)
   const client = getSupabaseClient();
   if (client) {
     const { error } = await client.from('orders').insert([
@@ -99,7 +172,7 @@ export async function submitCustomerOrder(
     if (error) {
       return {
         saved: false,
-        error: `Could not save your order to Supabase: ${error.message}`,
+        error: formatSupabaseError(error.message, error.code),
         code: error.code || 'SUPABASE_INSERT_ERROR',
       };
     }
@@ -112,45 +185,10 @@ export async function submitCustomerOrder(
     };
   }
 
-  // Path 2: Fallback to /api/orders (Netlify Function or Express server.ts) when server-side Supabase credentials are configured
-  try {
-    const response = await fetch('/api/orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        customerName,
-        deliveryAddress,
-        contactNumber,
-        productName,
-        productBrand,
-        productCategory,
-        productPrice,
-        quantity,
-      }),
-    });
-
-    const contentType = response.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
-      const data = (await response.json()) as OrderSubmissionResponse;
-      if (!response.ok || !data.saved) {
-        return {
-          saved: false,
-          error:
-            data.error ||
-            'Supabase is not configured yet. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local or Netlify Environment Variables (see SUPABASE_SETUP.md).',
-          code: data.code || 'ORDER_SAVE_FAILED',
-        };
-      }
-      return data;
-    }
-  } catch {
-    // Fall through to configuration guidance error
-  }
-
   return {
     saved: false,
     error:
-      'Supabase is not configured yet. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local or Netlify Environment Variables (see SUPABASE_SETUP.md).',
+      'Supabase is not configured yet. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Netlify Environment Variables or AI Studio Secrets (and run supabase-setup.sql in Supabase SQL Editor).',
     code: 'SUPABASE_NOT_CONFIGURED',
   };
 }

@@ -168,9 +168,14 @@ async function startServer() {
           .single();
 
         if (error) {
+          const friendlyError =
+            error.code === 'PGRST205' ||
+            error.message.includes("Could not find the table 'public.orders'")
+              ? 'Connected to Supabase, but the "orders" table does not exist yet. Open Supabase Dashboard → SQL Editor → New query, paste supabase-setup.sql, and click Run.'
+              : `Could not save order to Supabase: ${error.message}`;
           return res.status(502).json({
             saved: false,
-            error: `Could not save order to Supabase: ${error.message}`,
+            error: friendlyError,
             code: error.code || 'SUPABASE_INSERT_ERROR',
           });
         }
@@ -185,9 +190,16 @@ async function startServer() {
 
       const { error } = await supabase.from('orders').insert([row]);
       if (error) {
+        const friendlyError =
+          error.code === 'PGRST205' ||
+          error.message.includes("Could not find the table 'public.orders'")
+            ? 'Connected to Supabase, but the "orders" table does not exist yet. Open Supabase Dashboard → SQL Editor → New query, paste supabase-setup.sql, and click Run.'
+            : error.code === '42501' || error.message.toLowerCase().includes('row-level security')
+              ? 'Supabase RLS blocked the insert. Re-run supabase-setup.sql in Supabase SQL Editor to enable the INSERT policy on "orders".'
+              : `Could not save order to Supabase: ${error.message}`;
         return res.status(502).json({
           saved: false,
-          error: `Could not save order to Supabase: ${error.message}`,
+          error: friendlyError,
           code: error.code || 'SUPABASE_INSERT_ERROR',
         });
       }
