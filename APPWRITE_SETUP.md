@@ -1,27 +1,20 @@
-# FS SHOP – Appwrite Connection Guide (Step-by-Step)
+# FS SHOP – Appwrite, GitHub & Netlify Deployment Guide
 
-Follow these simple steps to connect **FS SHOP** to your **Appwrite** database so every laptop, mouse, keyboard, and accessory order is saved directly in Appwrite.
-
----
-
-## Step 1: Create an Appwrite Project & Register Your Web Platform
-
-1. Log in to [Appwrite Cloud](https://cloud.appwrite.io) (or your self-hosted Appwrite Console).
-2. Click **Create project** and name it **FS SHOP**.
-3. Copy your **Project ID** and **API Endpoint** (for Appwrite Cloud, usually `https://cloud.appwrite.io/v1` or region-specific e.g. `https://fra.cloud.appwrite.io/v1`).
-4. On the project **Overview** page, click **Add a platform** → **Web**:
-   - Add `localhost` for local testing.
-   - Add your live domain (for example, your AI Studio or Netlify URL) so browser requests are allowed by CORS.
+This guide covers the exact setup for **Appwrite Database persistence**, **Netlify Functions (`/api/orders`)**, and **SPA routing (`_redirects`)** so every route and every order works reliably in production.
 
 ---
 
-## Step 2: Create the `orders` Database & Collection
+## 1. Appwrite Database & Collection Setup
 
-1. In the left sidebar, open **Databases** → click **Create database** → name it `fs_shop_db` (copy the **Database ID**).
-2. Inside `fs_shop_db`, click **Create collection** (or **Create table**) → name it `orders` (copy the **Collection ID**).
-3. Open the **Attributes** (or **Columns**) tab of `orders` and create these exact attributes:
+1. Log in to [Appwrite Console](https://cloud.appwrite.io).
+2. Create or open your **FS SHOP** project and copy:
+   - **API Endpoint** (e.g. `https://cloud.appwrite.io/v1` or your region endpoint such as `https://fra.cloud.appwrite.io/v1`)
+   - **Project ID**
+3. Go to **Databases** → create database `fs_shop_db` (copy the **Database ID**).
+4. Inside `fs_shop_db`, create collection (or table) `orders` (copy the **Collection ID** / **Table ID**).
+5. Open **Attributes** (or **Columns**) on `orders` and create these exact fields:
 
-| Attribute Key      | Type     | Size / Options            | Required |
+| Attribute Key      | Type     | Size / Limits             | Required |
 | ------------------ | -------- | ------------------------- | -------- |
 | `customer_name`    | String   | 255                       | Yes      |
 | `delivery_address` | String   | 1000                      | Yes      |
@@ -35,30 +28,53 @@ Follow these simple steps to connect **FS SHOP** to your **Appwrite** database s
 | `order_status`     | String   | 50 (Default: `Pending`)   | No       |
 | `created_at`       | String   | 64                        | Yes      |
 
----
-
-## Step 3: Set Secure Permissions on `orders`
-
-1. Go to the **Settings** tab of your `orders` collection → **Permissions**.
-2. Add the **Any** role (`Role: Any`) and check **ONLY** `Create`!
-3. Leave `Read`, `Update`, and `Delete` **UNCHECKED** for `Any` so anonymous shoppers can submit new orders without logging in, while customer names, phone numbers, and delivery addresses remain private to you in the Appwrite Console.
-
-*(Optional server-side alternative: If you prefer keeping permissions completely private and saving via `server.ts`, create an Appwrite API Key with `documents.write` scope and set `APPWRITE_API_KEY` on the server—never put `APPWRITE_API_KEY` in `VITE_*` variables.)*
+6. Wait until every attribute status shows **Available** (green) in Appwrite.
 
 ---
 
-## Step 4: Add Environment Variables to `.env.local`
+## 2. Create a Secure Appwrite Server API Key (Recommended)
 
-Create a file named `.env.local` in the project root (next to `package.json`) and paste:
+Using a server-side API key via **Netlify Functions** (`netlify/functions/orders.ts`) keeps customer orders private and prevents exposing secrets in browser code:
 
-```env
-VITE_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
-VITE_APPWRITE_PROJECT_ID=YOUR_APPWRITE_PROJECT_ID
-VITE_APPWRITE_DATABASE_ID=YOUR_APPWRITE_DATABASE_ID
-VITE_APPWRITE_COLLECTION_ID=YOUR_APPWRITE_COLLECTION_ID
+1. In Appwrite Console → **Overview → Integrations → API Keys → Create API Key**.
+2. Name it `Netlify Orders Function`.
+3. Under **Scopes**, check **Databases**:
+   - `documents.write` (and `rows.write` if using TablesDB)
+4. Copy the generated **API Key Secret**.
+5. *(Optional for client fallback)*: Under **Overview → Platforms**, add your Netlify domain (e.g. `your-site.netlify.app`), and in `orders` → **Settings → Permissions**, optionally grant `Role: Any` → `Create` ONLY (leave `Read`, `Update`, `Delete` unchecked).
+
+---
+
+## 3. Push Changes to GitHub
+
+From your project root:
+
+```bash
+git add .
+git commit -m "Fix SPA redirects, React Router routes, and Netlify Function Appwrite orders"
+git push origin main
 ```
 
-Replace the placeholder values with your real Appwrite IDs, then **restart your development server** (`npm run dev`).
+---
 
-### Deploying on Netlify / Vercel
-Add the same four `VITE_APPWRITE_*` variables in **Site Configuration → Environment Variables**, then trigger a redeploy.
+## 4. Configure Netlify & Environment Variables
+
+1. Open your site in **Netlify Dashboard** → **Site configuration → Build & deploy → Build settings**:
+   - **Build command**: `npm run build`
+   - **Publish directory**: `dist`
+   - **Functions directory**: `netlify/functions` (auto-detected from `netlify.toml`)
+2. Go to **Site configuration → Environment variables → Add a variable** and add:
+
+   | Key                      | Value                                            |
+   | ------------------------ | ------------------------------------------------ |
+   | `APPWRITE_ENDPOINT`      | `https://cloud.appwrite.io/v1` (or your region)  |
+   | `APPWRITE_PROJECT_ID`    | Your Appwrite Project ID                         |
+   | `APPWRITE_DATABASE_ID`   | Your Appwrite Database ID                        |
+   | `APPWRITE_COLLECTION_ID` | Your `orders` Collection / Table ID              |
+   | `APPWRITE_API_KEY`       | Your Appwrite Server API Key (secret)            |
+
+   *(Do NOT prefix `APPWRITE_API_KEY` with `VITE_`. Only server-side Netlify Functions read `APPWRITE_API_KEY`.)*
+3. Go to **Deploys → Trigger deploy → Clear cache and deploy site**.
+4. After deployment finishes:
+   - Visit `/laptops`, `/mouse-collection`, `/brands/apple-macbook`, or `/product/apple-macbook-pro-14-m3-pro` and refresh the browser — every route loads cleanly without Page Not Found.
+   - Submit a test order — `POST /api/orders` runs `netlify/functions/orders.ts`, verifies the write in Appwrite, and shows confirmation only after Appwrite returns the saved document ID.

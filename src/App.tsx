@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
   ArrowRight,
@@ -34,6 +35,7 @@ import {
   KEYBOARD_COLLECTION,
   MOUSE_COLLECTION,
   OTHER_ACCESSORIES,
+  ALL_ACCESSORIES,
 } from './data/accessories';
 import {
   AccessoryProduct,
@@ -69,7 +71,41 @@ function matchesSearch(product: AccessoryProduct, query: string): boolean {
   return haystack.includes(query);
 }
 
+const BRAND_SLUG_MAP: Record<string, BrandName> = {
+  hp: 'HP',
+  dell: 'Dell',
+  lenovo: 'Lenovo',
+  'apple-macbook': 'Apple MacBook',
+  apple: 'Apple MacBook',
+  macbook: 'Apple MacBook',
+  asus: 'Asus',
+  acer: 'Acer',
+  msi: 'MSI',
+  'microsoft-surface': 'Microsoft Surface',
+  surface: 'Microsoft Surface',
+  samsung: 'Samsung',
+  toshiba: 'Toshiba',
+};
+
+const SECTION_ROUTE_MAP: Record<string, string> = {
+  home: '/',
+  catalog: '/laptops',
+  brands: '/brands',
+  'price-categories': '/price-categories',
+  'mouse-collection': '/mouse-collection',
+  'keyboard-collection': '/keyboard-collection',
+  'other-accessories': '/accessories',
+  about: '/about',
+  contact: '/contact',
+};
+
+function brandToSlug(brand: BrandName): string {
+  return brand.toLowerCase().replace(/\s+/g, '-');
+}
+
 export default function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [customPrices, setCustomPrices] = useState<
     Record<string, { pricePkr: number; originalPricePkr?: number }>
   >(() => {
@@ -117,12 +153,30 @@ export default function App() {
     }
   }, [customPrices]);
 
-  const scrollToSection = (sectionId: string) => {
+  const scrollToSection = useCallback((sectionId: string) => {
     const el = document.getElementById(sectionId);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  };
+  }, []);
+
+  const openProduct = useCallback(
+    (orderable: OrderableProduct) => {
+      setActiveProduct(orderable);
+      const targetPath = `/product/${orderable.item.id}`;
+      if (location.pathname !== targetPath) {
+        navigate(targetPath);
+      }
+    },
+    [location.pathname, navigate]
+  );
+
+  const closeProduct = useCallback(() => {
+    setActiveProduct(null);
+    if (location.pathname.startsWith('/product/')) {
+      navigate('/', { replace: true });
+    }
+  }, [location.pathname, navigate]);
 
   const handleNavigate = (
     sectionId: string,
@@ -141,6 +195,10 @@ export default function App() {
       setSelectedPriceTier('all');
       setSelectedCollection('all');
     }
+    const routePath = SECTION_ROUTE_MAP[sectionId];
+    if (routePath && location.pathname !== routePath) {
+      navigate(routePath);
+    }
     scrollToSection(sectionId);
   };
 
@@ -148,6 +206,10 @@ export default function App() {
     setSelectedBrand(brand);
     setSelectedPriceTier('all');
     setSelectedCollection('all');
+    const brandPath = `/brands/${brandToSlug(brand)}`;
+    if (location.pathname !== brandPath) {
+      navigate(brandPath);
+    }
     scrollToSection('catalog');
   };
 
@@ -155,6 +217,9 @@ export default function App() {
     setSelectedPriceTier(tier);
     setSelectedBrand('All');
     setSelectedCollection('all');
+    if (location.pathname !== '/laptops') {
+      navigate('/laptops');
+    }
     scrollToSection('catalog');
   };
 
@@ -166,7 +231,62 @@ export default function App() {
     setKeyboardFilter('All');
     setOtherAccFilter('All');
     setSearchQuery('');
+    if (location.pathname !== '/') {
+      navigate('/');
+    }
   };
+
+  // Sync direct links and browser refreshes to the matching section, brand, or product modal
+  useEffect(() => {
+    const path = location.pathname.replace(/\/+$/, '') || '/';
+
+    if (path.startsWith('/product/')) {
+      const productId = decodeURIComponent(path.replace('/product/', ''));
+      const matchedLaptop = laptops.find((l) => l.id === productId);
+      if (matchedLaptop) {
+        setActiveProduct(toOrderableLaptop(matchedLaptop));
+        return;
+      }
+      const matchedAccessory = ALL_ACCESSORIES.find((a) => a.id === productId);
+      if (matchedAccessory) {
+        setActiveProduct(toOrderableAccessory(matchedAccessory));
+        return;
+      }
+      setActiveProduct(null);
+      return;
+    }
+
+    if (path.startsWith('/brands/')) {
+      const slug = decodeURIComponent(path.replace('/brands/', '')).toLowerCase();
+      const matchedBrand = BRAND_SLUG_MAP[slug];
+      if (matchedBrand) {
+        setSelectedBrand(matchedBrand);
+        setSelectedPriceTier('all');
+        setSelectedCollection('all');
+        requestAnimationFrame(() => scrollToSection('catalog'));
+      }
+      return;
+    }
+
+    const pathToSection: Record<string, string> = {
+      '/laptops': 'catalog',
+      '/brands': 'brands',
+      '/price-categories': 'price-categories',
+      '/mouse-collection': 'mouse-collection',
+      '/mice': 'mouse-collection',
+      '/keyboard-collection': 'keyboard-collection',
+      '/keyboards': 'keyboard-collection',
+      '/other-accessories': 'other-accessories',
+      '/accessories': 'other-accessories',
+      '/about': 'about',
+      '/contact': 'contact',
+    };
+
+    const targetSection = pathToSection[path];
+    if (targetSection) {
+      requestAnimationFrame(() => scrollToSection(targetSection));
+    }
+  }, [location.pathname, laptops, scrollToSection]);
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
@@ -237,13 +357,13 @@ export default function App() {
     selectedCollection !== 'all' ||
     normalizedQuery.length > 0;
 
-  return (
+  const storefront = (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#090D16]">
       <Navbar
         searchQuery={searchQuery}
         onSearchChange={(val) => setSearchQuery(val)}
         onNavigate={handleNavigate}
-        onShopNow={() => scrollToSection('catalog')}
+        onShopNow={() => handleNavigate('catalog')}
       />
 
       <main className="flex-1">
@@ -252,10 +372,10 @@ export default function App() {
           featuredLaptops={laptops}
           featuredMouse={MOUSE_COLLECTION[6]}
           featuredKeyboard={KEYBOARD_COLLECTION[2]}
-          onShopNow={() => scrollToSection('catalog')}
-          onExploreLaptops={() => scrollToSection('brands')}
-          onSelectLaptop={(laptop) => setActiveProduct(toOrderableLaptop(laptop))}
-          onSelectAccessory={(acc) => setActiveProduct(toOrderableAccessory(acc))}
+          onShopNow={() => handleNavigate('catalog')}
+          onExploreLaptops={() => handleNavigate('brands')}
+          onSelectLaptop={(laptop) => openProduct(toOrderableLaptop(laptop))}
+          onSelectAccessory={(acc) => openProduct(toOrderableAccessory(acc))}
         />
 
         {/* 2. Quick Department Jump Strip */}
@@ -441,7 +561,7 @@ export default function App() {
                           type="button"
                           onClick={() => {
                             if (brandLaptops.length === 1) {
-                              setActiveProduct(toOrderableLaptop(brandLaptops[0]));
+                              openProduct(toOrderableLaptop(brandLaptops[0]));
                             } else {
                               handleSelectBrand(brand.name);
                             }
@@ -571,7 +691,7 @@ export default function App() {
                   <ProductCard
                     key={laptop.id}
                     laptop={laptop}
-                    onShopNow={(selected) => setActiveProduct(toOrderableLaptop(selected))}
+                    onShopNow={(selected) => openProduct(toOrderableLaptop(selected))}
                   />
                 ))}
               </div>
@@ -644,7 +764,7 @@ export default function App() {
                   <AccessoryCard
                     key={mouse.id}
                     product={mouse}
-                    onShopNow={(selected) => setActiveProduct(toOrderableAccessory(selected))}
+                    onShopNow={(selected) => openProduct(toOrderableAccessory(selected))}
                   />
                 ))}
               </div>
@@ -717,7 +837,7 @@ export default function App() {
                   <AccessoryCard
                     key={keyboard.id}
                     product={keyboard}
-                    onShopNow={(selected) => setActiveProduct(toOrderableAccessory(selected))}
+                    onShopNow={(selected) => openProduct(toOrderableAccessory(selected))}
                   />
                 ))}
               </div>
@@ -790,7 +910,7 @@ export default function App() {
                   <AccessoryCard
                     key={accessory.id}
                     product={accessory}
-                    onShopNow={(selected) => setActiveProduct(toOrderableAccessory(selected))}
+                    onShopNow={(selected) => openProduct(toOrderableAccessory(selected))}
                   />
                 ))}
               </div>
@@ -1111,8 +1231,8 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Unified Product Detail & 3-Field Supabase Order Modal */}
-      <ProductModal product={activeProduct} onClose={() => setActiveProduct(null)} />
+      {/* Unified Product Detail & 3-Field Appwrite Order Modal */}
+      <ProductModal product={activeProduct} onClose={closeProduct} />
 
       {/* Store Owner Editable PKR Price Manager */}
       <PriceEditorModal
@@ -1126,5 +1246,25 @@ export default function App() {
       {/* Floating WhatsApp Order Button */}
       <FloatingWhatsApp />
     </div>
+  );
+
+  return (
+    <Routes>
+      <Route path="/" element={storefront} />
+      <Route path="/laptops" element={storefront} />
+      <Route path="/brands" element={storefront} />
+      <Route path="/brands/:brandSlug" element={storefront} />
+      <Route path="/price-categories" element={storefront} />
+      <Route path="/mouse-collection" element={storefront} />
+      <Route path="/mice" element={storefront} />
+      <Route path="/keyboard-collection" element={storefront} />
+      <Route path="/keyboards" element={storefront} />
+      <Route path="/other-accessories" element={storefront} />
+      <Route path="/accessories" element={storefront} />
+      <Route path="/about" element={storefront} />
+      <Route path="/contact" element={storefront} />
+      <Route path="/product/:productId" element={storefront} />
+      <Route path="*" element={storefront} />
+    </Routes>
   );
 }

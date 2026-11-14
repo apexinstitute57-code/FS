@@ -11,7 +11,8 @@ function isPlaceholder(value: string): boolean {
     lower.includes('your_supabase') ||
     lower.includes('your-project-id') ||
     lower.includes('your-supabase-') ||
-    lower === 'undefined'
+    lower === 'undefined' ||
+    lower === 'null'
   );
 }
 
@@ -77,7 +78,7 @@ export async function submitCustomerOrder(
   const totalPrice = productPrice * quantity;
   const createdAt = new Date().toISOString();
 
-  // Path 1: Direct Supabase JS Client (works on Vite local & Netlify static deploys)
+  // Path 1: Direct Supabase JS Client (works on Vite local & Netlify static deploys using publishable/anon key + RLS)
   const client = getSupabaseClient();
   if (client) {
     const { error } = await client.from('orders').insert([
@@ -111,7 +112,7 @@ export async function submitCustomerOrder(
     };
   }
 
-  // Path 2: Fallback to Express backend (/api/orders) if server-side Supabase secrets are configured
+  // Path 2: Fallback to /api/orders (Netlify Function or Express server.ts) when server-side Supabase credentials are configured
   try {
     const response = await fetch('/api/orders', {
       method: 'POST',
@@ -128,24 +129,28 @@ export async function submitCustomerOrder(
       }),
     });
 
-    const data = (await response.json()) as OrderSubmissionResponse;
-    if (!response.ok || !data.saved) {
-      return {
-        saved: false,
-        error:
-          data.error ||
-          'Supabase is not configured yet. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local (see SUPABASE_SETUP.md) or order via WhatsApp.',
-        code: data.code || 'ORDER_SAVE_FAILED',
-      };
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const data = (await response.json()) as OrderSubmissionResponse;
+      if (!response.ok || !data.saved) {
+        return {
+          saved: false,
+          error:
+            data.error ||
+            'Supabase is not configured yet. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local or Netlify Environment Variables (see SUPABASE_SETUP.md).',
+          code: data.code || 'ORDER_SAVE_FAILED',
+        };
+      }
+      return data;
     }
-
-    return data;
   } catch {
-    return {
-      saved: false,
-      error:
-        'Supabase is not configured or the server could not be reached. Please check SUPABASE_SETUP.md or place your order via WhatsApp at 03086421306.',
-      code: 'NETWORK_OR_CONFIG_ERROR',
-    };
+    // Fall through to configuration guidance error
   }
+
+  return {
+    saved: false,
+    error:
+      'Supabase is not configured yet. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local or Netlify Environment Variables (see SUPABASE_SETUP.md).',
+    code: 'SUPABASE_NOT_CONFIGURED',
+  };
 }
