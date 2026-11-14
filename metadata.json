@@ -1,0 +1,6 @@
+{
+  "name": "FS SHOP",
+  "description": "FS SHOP – Your World of Technology. Premium laptop e-commerce store in Pakistan offering HP, Dell, Lenovo, Apple MacBook, Asus, Acer, MSI, Microsoft Surface, Samsung, and Toshiba laptops at the best prices.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

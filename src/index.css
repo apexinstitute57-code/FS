@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    background-color: #f8fafc;
+    color: #090d16;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-display {
+    font-family: var(--font-display);
+  }
+}
+
+@keyframes floatSlow {
+  0%,
+  100% {
+    transform: translate3d(0, 0px, 0) rotateX(0deg) rotateY(0deg);
+  }
+  50% {
+    transform: translate3d(0, -12px, 0) rotateX(1.5deg) rotateY(-1.5deg);
+  }
+}
+
+@keyframes floatReverse {
+  0%,
+  100% {
+    transform: translate3d(0, 0px, 0);
+  }
+  50% {
+    transform: translate3d(0, 10px, 0);
+  }
+}
+
+@keyframes gradientDrift {
+  0%,
+  100% {
+    transform: translate3d(0%, 0%, 0) scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translate3d(3%, -2%, 0) scale(1.06);
+    opacity: 0.78;
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 6.5s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+}
+
+.animate-float-reverse {
+  animation: floatReverse 7.5s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+}
+
+.animate-gradient-drift {
+  animation: gradientDrift 12s ease-in-out infinite;
+}
+
+.perspective-stage {
+  perspective: 1400px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-slow,
+  .animate-float-reverse,
+  .animate-gradient-drift {
+    animation: none !important;
+  }
+}
