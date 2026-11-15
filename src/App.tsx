@@ -35,16 +35,18 @@ import {
   KEYBOARD_COLLECTION,
   MOUSE_COLLECTION,
   OTHER_ACCESSORIES,
-  ALL_ACCESSORIES,
 } from './data/accessories';
 import {
   AccessoryProduct,
   BrandName,
+  CatalogProductRecord,
   Laptop,
   OrderableProduct,
   PriceTierKey,
   SpecialCollectionKey,
 } from './types/laptop';
+import { fetchCatalogUpdates } from './lib/supabase';
+import { mergeAccessoryCatalog, mergeLaptopCatalog } from './lib/catalog';
 import { BrandLogo, FSShopMark } from './components/BrandLogo';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
@@ -53,8 +55,6 @@ import { AccessoryCard } from './components/AccessoryCard';
 import { ProductModal } from './components/ProductModal';
 import { PriceEditorModal } from './components/PriceEditorModal';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
-
-const STORAGE_KEY_PRICES = 'fs_shop_custom_prices_v1';
 
 function matchesSearch(product: AccessoryProduct, query: string): boolean {
   if (!query) return true;
@@ -106,28 +106,53 @@ function brandToSlug(brand: BrandName): string {
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [customPrices, setCustomPrices] = useState<
-    Record<string, { pricePkr: number; originalPricePkr?: number }>
-  >(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_PRICES);
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
+  const [catalogRecords, setCatalogRecords] = useState<CatalogProductRecord[]>([]);
 
-  const laptops: Laptop[] = useMemo(() => {
-    return INITIAL_LAPTOPS.map((item) => {
-      const override = customPrices[item.id];
-      if (!override) return item;
-      return {
-        ...item,
-        pricePkr: override.pricePkr,
-        originalPricePkr: override.originalPricePkr,
-      };
-    });
-  }, [customPrices]);
+  useEffect(() => {
+    let active = true;
+    fetchCatalogUpdates()
+      .then((items) => {
+        if (active && Array.isArray(items) && items.length > 0) {
+          setCatalogRecords(items);
+        }
+      })
+      .catch(() => {
+        // Keep base catalog if offline
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const customRecordIds = useMemo(
+    () => new Set(catalogRecords.filter((r) => r.is_custom).map((r) => r.id)),
+    [catalogRecords]
+  );
+
+  const laptops: Laptop[] = useMemo(
+    () => mergeLaptopCatalog(INITIAL_LAPTOPS, catalogRecords),
+    [catalogRecords]
+  );
+
+  const mouseCollection: AccessoryProduct[] = useMemo(
+    () => mergeAccessoryCatalog(MOUSE_COLLECTION, catalogRecords, 'Mouse Collection'),
+    [catalogRecords]
+  );
+
+  const keyboardCollection: AccessoryProduct[] = useMemo(
+    () => mergeAccessoryCatalog(KEYBOARD_COLLECTION, catalogRecords, 'Keyboard Collection'),
+    [catalogRecords]
+  );
+
+  const otherAccessories: AccessoryProduct[] = useMemo(
+    () => mergeAccessoryCatalog(OTHER_ACCESSORIES, catalogRecords, 'Other Accessories'),
+    [catalogRecords]
+  );
+
+  const allAccessories: AccessoryProduct[] = useMemo(
+    () => [...mouseCollection, ...keyboardCollection, ...otherAccessories],
+    [mouseCollection, keyboardCollection, otherAccessories]
+  );
 
   const [selectedBrand, setSelectedBrand] = useState<BrandName | 'All'>('All');
   const [selectedPriceTier, setSelectedPriceTier] = useState<PriceTierKey>('all');
@@ -140,18 +165,6 @@ export default function App() {
   const [mouseFilter, setMouseFilter] = useState<string>('All');
   const [keyboardFilter, setKeyboardFilter] = useState<string>('All');
   const [otherAccFilter, setOtherAccFilter] = useState<string>('All');
-
-  useEffect(() => {
-    try {
-      if (Object.keys(customPrices).length > 0) {
-        localStorage.setItem(STORAGE_KEY_PRICES, JSON.stringify(customPrices));
-      } else {
-        localStorage.removeItem(STORAGE_KEY_PRICES);
-      }
-    } catch {
-      // Ignore storage quota errors
-    }
-  }, [customPrices]);
 
   const scrollToSection = useCallback((sectionId: string) => {
     const el = document.getElementById(sectionId);
@@ -247,7 +260,7 @@ export default function App() {
         setActiveProduct(toOrderableLaptop(matchedLaptop));
         return;
       }
-      const matchedAccessory = ALL_ACCESSORIES.find((a) => a.id === productId);
+      const matchedAccessory = allAccessories.find((a) => a.id === productId);
       if (matchedAccessory) {
         setActiveProduct(toOrderableAccessory(matchedAccessory));
         return;
@@ -286,7 +299,7 @@ export default function App() {
     if (targetSection) {
       requestAnimationFrame(() => scrollToSection(targetSection));
     }
-  }, [location.pathname, laptops, scrollToSection]);
+  }, [location.pathname, laptops, allAccessories, scrollToSection]);
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
@@ -331,25 +344,25 @@ export default function App() {
   }, [laptops, selectedBrand, selectedPriceTier, selectedCollection, normalizedQuery]);
 
   const filteredMice = useMemo(() => {
-    return MOUSE_COLLECTION.filter((item) => {
+    return mouseCollection.filter((item) => {
       if (mouseFilter !== 'All' && item.subType !== mouseFilter) return false;
       return matchesSearch(item, normalizedQuery);
     });
-  }, [mouseFilter, normalizedQuery]);
+  }, [mouseCollection, mouseFilter, normalizedQuery]);
 
   const filteredKeyboards = useMemo(() => {
-    return KEYBOARD_COLLECTION.filter((item) => {
+    return keyboardCollection.filter((item) => {
       if (keyboardFilter !== 'All' && item.subType !== keyboardFilter) return false;
       return matchesSearch(item, normalizedQuery);
     });
-  }, [keyboardFilter, normalizedQuery]);
+  }, [keyboardCollection, keyboardFilter, normalizedQuery]);
 
   const filteredOtherAccessories = useMemo(() => {
-    return OTHER_ACCESSORIES.filter((item) => {
+    return otherAccessories.filter((item) => {
       if (otherAccFilter !== 'All' && item.subType !== otherAccFilter) return false;
       return matchesSearch(item, normalizedQuery);
     });
-  }, [otherAccFilter, normalizedQuery]);
+  }, [otherAccessories, otherAccFilter, normalizedQuery]);
 
   const hasActiveFilters =
     selectedBrand !== 'All' ||
@@ -364,14 +377,15 @@ export default function App() {
         onSearchChange={(val) => setSearchQuery(val)}
         onNavigate={handleNavigate}
         onShopNow={() => handleNavigate('catalog')}
+        onOpenCatalogManager={() => setPriceEditorOpen(true)}
       />
 
       <main className="flex-1">
         {/* 1. 3D Parallax Hero Section (Laptop, Mouse & Keyboard) */}
         <HeroSection
           featuredLaptops={laptops}
-          featuredMouse={MOUSE_COLLECTION[6]}
-          featuredKeyboard={KEYBOARD_COLLECTION[2]}
+          featuredMouse={mouseCollection[6] || mouseCollection[0]}
+          featuredKeyboard={keyboardCollection[2] || keyboardCollection[0]}
           onShopNow={() => handleNavigate('catalog')}
           onExploreLaptops={() => handleNavigate('brands')}
           onSelectLaptop={(laptop) => openProduct(toOrderableLaptop(laptop))}
@@ -397,21 +411,21 @@ export default function App() {
                 onClick={() => scrollToSection('mouse-collection')}
                 className="px-3.5 py-2 rounded-lg bg-white/8 hover:bg-[#2563EB] text-xs font-semibold text-white transition-colors cursor-pointer whitespace-nowrap"
               >
-                Mouse Collection ({MOUSE_COLLECTION.length})
+                Mouse Collection ({mouseCollection.length})
               </button>
               <button
                 type="button"
                 onClick={() => scrollToSection('keyboard-collection')}
                 className="px-3.5 py-2 rounded-lg bg-white/8 hover:bg-[#2563EB] text-xs font-semibold text-white transition-colors cursor-pointer whitespace-nowrap"
               >
-                Keyboard Collection ({KEYBOARD_COLLECTION.length})
+                Keyboard Collection ({keyboardCollection.length})
               </button>
               <button
                 type="button"
                 onClick={() => scrollToSection('other-accessories')}
                 className="px-3.5 py-2 rounded-lg bg-white/8 hover:bg-[#2563EB] text-xs font-semibold text-white transition-colors cursor-pointer whitespace-nowrap"
               >
-                Other Accessories ({OTHER_ACCESSORIES.length})
+                Other Accessories ({otherAccessories.length})
               </button>
             </div>
           </div>
@@ -642,7 +656,7 @@ export default function App() {
                   aria-label="Filter by brand"
                   value={selectedBrand}
                   onChange={(e) => setSelectedBrand(e.target.value as BrandName | 'All')}
-                  className="h-9 px-3 rounded-lg border border-slate-300 bg-white text-xs font-medium text-[#090D16] focus:outline-none focus:border-[#2563EB]"
+                  className="h-10 sm:h-9 px-3 rounded-lg border border-slate-300 bg-white text-base sm:text-xs font-medium text-[#090D16] focus:outline-none focus:border-[#2563EB]"
                 >
                   <option value="All">All 10 Brands</option>
                   {BRANDS.map((b) => (
@@ -656,7 +670,7 @@ export default function App() {
                   aria-label="Filter by price range"
                   value={selectedPriceTier}
                   onChange={(e) => setSelectedPriceTier(e.target.value as PriceTierKey)}
-                  className="h-9 px-3 rounded-lg border border-slate-300 bg-white text-xs font-medium text-[#090D16] focus:outline-none focus:border-[#2563EB]"
+                  className="h-10 sm:h-9 px-3 rounded-lg border border-slate-300 bg-white text-base sm:text-xs font-medium text-[#090D16] focus:outline-none focus:border-[#2563EB]"
                 >
                   <option value="all">All Price Ranges</option>
                   {PRICE_CATEGORIES.map((tier) => (
@@ -725,13 +739,13 @@ export default function App() {
               </div>
 
               <span className="text-xs font-mono tabular-nums text-slate-500">
-                {filteredMice.length} of {MOUSE_COLLECTION.length} models
+                {filteredMice.length} of {mouseCollection.length} models
               </span>
             </div>
 
             {/* Sub-Type Filter Pills (Interactive Controls) */}
             <div className="flex flex-wrap items-center gap-2 mb-8">
-              {['All', ...MOUSE_COLLECTION.map((m) => m.subType)].map((sub) => (
+              {['All', ...Array.from(new Set(mouseCollection.map((m) => m.subType)))].map((sub) => (
                 <button
                   key={sub}
                   type="button"
@@ -798,13 +812,13 @@ export default function App() {
               </div>
 
               <span className="text-xs font-mono tabular-nums text-slate-500">
-                {filteredKeyboards.length} of {KEYBOARD_COLLECTION.length} models
+                {filteredKeyboards.length} of {keyboardCollection.length} models
               </span>
             </div>
 
             {/* Sub-Type Filter Tabs */}
             <div className="flex flex-wrap items-center gap-2 mb-8">
-              {['All', ...KEYBOARD_COLLECTION.map((k) => k.subType)].map((sub) => (
+              {['All', ...Array.from(new Set(keyboardCollection.map((k) => k.subType)))].map((sub) => (
                 <button
                   key={sub}
                   type="button"
@@ -871,13 +885,13 @@ export default function App() {
               </div>
 
               <span className="text-xs font-mono tabular-nums text-slate-500">
-                {filteredOtherAccessories.length} of {OTHER_ACCESSORIES.length} items
+                {filteredOtherAccessories.length} of {otherAccessories.length} items
               </span>
             </div>
 
             {/* Sub-Type Filter Tabs */}
             <div className="flex flex-wrap items-center gap-2 mb-8">
-              {['All', ...OTHER_ACCESSORIES.map((a) => a.subType)].map((sub) => (
+              {['All', ...Array.from(new Set(otherAccessories.map((a) => a.subType)))].map((sub) => (
                 <button
                   key={sub}
                   type="button"
@@ -1215,9 +1229,9 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setPriceEditorOpen(true)}
-                    className="text-[#60A5FA] hover:text-white transition-colors cursor-pointer"
+                    className="text-[#60A5FA] hover:text-white transition-colors text-left cursor-pointer"
                   >
-                    Edit Laptop Prices
+                    Manage Prices &amp; Products
                   </button>
                 </li>
               </ul>
@@ -1231,16 +1245,32 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Unified Product Detail & 3-Field Appwrite Order Modal */}
+      {/* Unified Product Detail & 3-Field Supabase Order Modal */}
       <ProductModal product={activeProduct} onClose={closeProduct} />
 
-      {/* Store Owner Editable PKR Price Manager */}
+      {/* Store Owner Live Supabase Price & Product Manager */}
       <PriceEditorModal
         open={priceEditorOpen}
         laptops={laptops}
+        accessories={allAccessories}
+        customRecordIds={customRecordIds}
         onClose={() => setPriceEditorOpen(false)}
-        onSavePrices={(updated) => setCustomPrices(updated)}
-        onResetPrices={() => setCustomPrices({})}
+        onCatalogUpdated={(savedItems) => {
+          setCatalogRecords((prev) => {
+            const byId = new Map(prev.map((r) => [r.id, r]));
+            for (const item of savedItems) {
+              byId.set(item.id, item);
+            }
+            return Array.from(byId.values());
+          });
+        }}
+        onCatalogDeleted={({ id, resetAllDefaults }) => {
+          setCatalogRecords((prev) =>
+            resetAllDefaults
+              ? prev.filter((r) => r.is_custom)
+              : prev.filter((r) => r.id !== id)
+          );
+        }}
       />
 
       {/* Floating WhatsApp Order Button */}

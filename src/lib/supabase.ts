@@ -1,5 +1,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { OrderSubmissionResponse } from '../types/laptop';
+import {
+  CatalogMutationResponse,
+  CatalogProductRecord,
+  OrderSubmissionResponse,
+} from '../types/laptop';
 
 function normalizeSupabaseUrl(raw: string): string {
   return raw.trim().replace(/^["']|["']$/g, '').replace(/\/+$/, '');
@@ -64,17 +68,24 @@ export interface SubmitOrderInput {
   quantity: number;
 }
 
-function formatSupabaseError(message: string, code?: string): string {
-  if (code === 'PGRST205' || message.includes("Could not find the table 'public.orders'")) {
-    return 'Connected to Supabase, but the "orders" table does not exist yet. Open Supabase Dashboard → SQL Editor → New query, paste supabase-setup.sql, and click Run.';
+function formatSupabaseError(
+  table: 'orders' | 'catalog_products',
+  message: string,
+  code?: string
+): string {
+  if (
+    code === 'PGRST205' ||
+    message.includes(`Could not find the table 'public.${table}'`)
+  ) {
+    return `Connected to Supabase, but the "${table}" table does not exist yet. Open Supabase Dashboard → SQL Editor → New query, paste supabase-setup.sql, and click Run.`;
   }
   if (code === '42501' || message.toLowerCase().includes('row-level security')) {
-    return 'Supabase blocked the insert because of Row Level Security (RLS). Re-run supabase-setup.sql in Supabase SQL Editor to create the INSERT policy for "orders".';
+    return `Supabase blocked the write because of Row Level Security (RLS) on "${table}". Re-run supabase-setup.sql in Supabase SQL Editor or set SUPABASE_SERVICE_ROLE_KEY in Vercel/server environment variables.`;
   }
   if (message.includes('Failed to fetch')) {
     return 'Network error contacting Supabase from the browser. Verify VITE_SUPABASE_URL is a valid https://...supabase.co URL and check your internet or firewall.';
   }
-  return `Could not save your order to Supabase: ${message}`;
+  return `Could not save to Supabase (${table}): ${message}`;
 }
 
 export async function submitCustomerOrder(
@@ -108,8 +119,7 @@ export async function submitCustomerOrder(
   const totalPrice = productPrice * quantity;
   const createdAt = new Date().toISOString();
 
-  // Path 1: Server-side proxy (/api/orders -> Express server.ts locally/AI Studio, Netlify Function on Netlify)
-  // Avoids browser CORS/adblocker/network issues ("TypeError: Failed to fetch") and supports server secrets.
+  // Path 1: Server-side proxy (/api/orders -> Vercel Serverless Function, Netlify Function, or Express)
   try {
     const response = await fetch('/api/orders', {
       method: 'POST',
@@ -134,7 +144,6 @@ export async function submitCustomerOrder(
         return data;
       }
 
-      // Only fall back to browser Supabase client if server-side env vars are unconfigured (503)
       if (
         !(response.status === 503 && data.code === 'SUPABASE_NOT_CONFIGURED' && isSupabaseClientConfigured)
       ) {
@@ -148,10 +157,10 @@ export async function submitCustomerOrder(
       }
     }
   } catch {
-    // Server endpoint unreachable; fall back to direct Supabase browser client if configured
+    // Fall back to direct Supabase browser client if configured
   }
 
-  // Path 2: Direct Supabase JS Client (publishable/anon key + RLS)
+  // Path 2: Direct Supabase JS Client
   const client = getSupabaseClient();
   if (client) {
     const { error } = await client.from('orders').insert([
@@ -172,7 +181,7 @@ export async function submitCustomerOrder(
     if (error) {
       return {
         saved: false,
-        error: formatSupabaseError(error.message, error.code),
+        error: formatSupabaseError('orders', error.message, error.code),
         code: error.code || 'SUPABASE_INSERT_ERROR',
       };
     }
@@ -188,7 +197,179 @@ export async function submitCustomerOrder(
   return {
     saved: false,
     error:
-      'Supabase is not configured yet. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Netlify Environment Variables or AI Studio Secrets (and run supabase-setup.sql in Supabase SQL Editor).',
+      'Supabase is not configured yet. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel/Netlify Environment Variables (and run supabase-setup.sql in Supabase SQL Editor).',
+    code: 'SUPABASE_NOT_CONFIGURED',
+  };
+}
+
+export async function fetchCatalogUpdates(): Promise<CatalogProductRecord[]> {
+  try {
+    const response = await fetch('/api/catalog', {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+    const contentType = response.headers.get('content-type') || '';
+    if (response.ok && contentType.includes('application/json')) {
+      const data = (await response.json()) as {
+        ok?: boolean;
+        configured?: boolean;
+        items?: CatalogProductRecord[];
+      };
+      if (data.ok && Array.isArray(data.items) && data.configured) {
+        return data.items;
+      }
+    }
+  } catch {
+    // Fall back to browser Supabase client
+  }
+
+  const client = getSupabaseClient();
+  if (!client) return [];
+
+  try {
+    const { data, error } = await client
+      .from('catalog_products')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error || !data) return [];
+    return data as CatalogProductRecord[];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveCatalogUpdates(
+  items: CatalogProductRecord[]
+): Promise<CatalogMutationResponse> {
+  if (!items || items.length === 0) {
+    return { saved: false, error: 'No catalog items to save.' };
+  }
+
+  try {
+    const response = await fetch('/api/catalog', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }),
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const data = (await response.json()) as CatalogMutationResponse;
+      if (response.ok && data.saved) {
+        return data;
+      }
+      if (
+        !(response.status === 503 && data.code === 'SUPABASE_NOT_CONFIGURED' && isSupabaseClientConfigured)
+      ) {
+        return {
+          saved: false,
+          error: data.error || 'Could not save catalog updates to Supabase.',
+          code: data.code || 'CATALOG_SAVE_ERROR',
+        };
+      }
+    }
+  } catch {
+    // Fall back to direct Supabase browser client
+  }
+
+  const client = getSupabaseClient();
+  if (client) {
+    const { data, error } = await client
+      .from('catalog_products')
+      .upsert(items, { onConflict: 'id' })
+      .select('*');
+
+    if (error) {
+      return {
+        saved: false,
+        error: formatSupabaseError('catalog_products', error.message, error.code),
+        code: error.code || 'CATALOG_SAVE_ERROR',
+      };
+    }
+
+    return {
+      saved: true,
+      items: (data as CatalogProductRecord[]) || items,
+    };
+  }
+
+  return {
+    saved: false,
+    error:
+      'Supabase is not configured yet. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel/Netlify Environment Variables and run supabase-setup.sql.',
+    code: 'SUPABASE_NOT_CONFIGURED',
+  };
+}
+
+export async function deleteCatalogUpdate(params: {
+  id?: string;
+  resetAllDefaults?: boolean;
+}): Promise<CatalogMutationResponse> {
+  try {
+    const response = await fetch('/api/catalog', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const data = (await response.json()) as CatalogMutationResponse;
+      if (response.ok && data.saved) {
+        return data;
+      }
+      if (
+        !(response.status === 503 && data.code === 'SUPABASE_NOT_CONFIGURED' && isSupabaseClientConfigured)
+      ) {
+        return {
+          saved: false,
+          error: data.error || 'Could not delete catalog entry in Supabase.',
+          code: data.code || 'CATALOG_DELETE_ERROR',
+        };
+      }
+    }
+  } catch {
+    // Fall back to browser Supabase client
+  }
+
+  const client = getSupabaseClient();
+  if (client) {
+    if (params.resetAllDefaults) {
+      const { error } = await client
+        .from('catalog_products')
+        .delete()
+        .eq('is_custom', false);
+      if (error) {
+        return {
+          saved: false,
+          error: formatSupabaseError('catalog_products', error.message, error.code),
+          code: error.code || 'CATALOG_DELETE_ERROR',
+        };
+      }
+      return { saved: true };
+    }
+
+    if (!params.id) {
+      return { saved: false, error: 'Product ID is required.' };
+    }
+
+    const { error } = await client
+      .from('catalog_products')
+      .delete()
+      .eq('id', params.id);
+    if (error) {
+      return {
+        saved: false,
+        error: formatSupabaseError('catalog_products', error.message, error.code),
+        code: error.code || 'CATALOG_DELETE_ERROR',
+      };
+    }
+    return { saved: true };
+  }
+
+  return {
+    saved: false,
+    error: 'Supabase is not configured yet.',
     code: 'SUPABASE_NOT_CONFIGURED',
   };
 }

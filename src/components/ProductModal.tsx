@@ -144,15 +144,15 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, onClose }) 
       role="dialog"
       aria-modal="true"
       aria-labelledby="product-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-[#040812]/80 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6 bg-[#040812]/80 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-5xl max-h-[92vh] overflow-y-auto bg-white rounded-2xl border border-slate-200 shadow-2xl"
+        className="relative w-full max-w-5xl max-h-[92dvh] overscroll-contain overflow-y-auto bg-white rounded-2xl border border-slate-200 shadow-2xl"
       >
         {/* Sticky Modal Header */}
-        <div className="sticky top-0 z-20 flex items-center justify-between gap-4 px-5 sm:px-7 py-4 bg-white/95 backdrop-blur-md border-b border-slate-100">
+        <div className="sticky top-0 z-20 flex items-center justify-between gap-3 px-4 sm:px-7 py-3.5 sm:py-4 bg-white/95 backdrop-blur-md border-b border-slate-100">
           <div className="flex items-center gap-3 min-w-0">
             {stage === 'order-form' && (
               <button
@@ -187,7 +187,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, onClose }) 
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 p-5 sm:p-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 p-4 sm:p-8">
           {/* Left Column: Multi-Image Studio Gallery */}
           <div className="lg:col-span-6 space-y-4">
             <div className="relative aspect-[4/3] w-full rounded-xl overflow-hidden bg-[#0A1328] border border-slate-200">
@@ -466,7 +466,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, onClose }) 
                       type="button"
                       disabled={submitting}
                       onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                      className="w-8 h-8 inline-flex items-center justify-center rounded border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 cursor-pointer disabled:opacity-50"
+                      aria-label="Decrease order quantity"
+                      className="w-10 h-10 sm:w-8 sm:h-8 inline-flex items-center justify-center rounded border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 cursor-pointer disabled:opacity-50"
                     >
                       <Minus className="w-3.5 h-3.5" />
                     </button>
@@ -477,7 +478,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, onClose }) 
                       type="button"
                       disabled={submitting}
                       onClick={() => setQuantity((q) => Math.min(50, q + 1))}
-                      className="w-8 h-8 inline-flex items-center justify-center rounded border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 cursor-pointer disabled:opacity-50"
+                      aria-label="Increase order quantity"
+                      className="w-10 h-10 sm:w-8 sm:h-8 inline-flex items-center justify-center rounded border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 cursor-pointer disabled:opacity-50"
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
@@ -496,12 +498,13 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, onClose }) 
                     <input
                       id="fs-customer-name"
                       type="text"
+                      autoComplete="name"
                       required
                       disabled={submitting}
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       placeholder="e.g. Ali Raza"
-                      className="w-full h-11 px-3.5 rounded-lg border border-slate-300 text-sm text-[#090D16] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 disabled:bg-slate-50"
+                      className="w-full h-11 px-3.5 rounded-lg border border-slate-300 text-base sm:text-sm text-[#090D16] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 disabled:bg-slate-50"
                     />
                   </div>
 
@@ -514,13 +517,14 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, onClose }) 
                     </label>
                     <textarea
                       id="fs-delivery-address"
+                      autoComplete="street-address"
                       required
                       disabled={submitting}
                       rows={3}
                       value={deliveryAddress}
                       onChange={(e) => setDeliveryAddress(e.target.value)}
                       placeholder="House / Street, Sector / Block, City, Pakistan"
-                      className="w-full p-3.5 rounded-lg border border-slate-300 text-sm text-[#090D16] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 resize-none disabled:bg-slate-50"
+                      className="w-full p-3.5 rounded-lg border border-slate-300 text-base sm:text-sm text-[#090D16] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 resize-none disabled:bg-slate-50"
                     />
                   </div>
 
@@ -534,12 +538,14 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, onClose }) 
                     <input
                       id="fs-contact-number"
                       type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
                       required
                       disabled={submitting}
                       value={contactNumber}
                       onChange={(e) => setContactNumber(e.target.value)}
                       placeholder="e.g. 03086421306"
-                      className="w-full h-11 px-3.5 rounded-lg border border-slate-300 text-sm text-[#090D16] font-mono focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 disabled:bg-slate-50"
+                      className="w-full h-11 px-3.5 rounded-lg border border-slate-300 text-base sm:text-sm text-[#090D16] font-mono focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 disabled:bg-slate-50"
                     />
                   </div>
                 </div>
@@ -611,29 +617,31 @@ export const ProductModal: React.FC<ProductModalProps> = ({ product, onClose }) 
                 </div>
 
                 <div className="rounded-xl bg-[#F8FAFC] border border-slate-200 p-4 space-y-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Order Reference</span>
-                    <span className="font-mono font-semibold text-[#090D16]">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-500 shrink-0">Order Reference</span>
+                    <span className="font-mono font-semibold text-[#090D16] break-all text-right">
                       {confirmedOrder.orderId}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Order Status</span>
-                    <span className="font-semibold text-emerald-700">Pending Confirmation</span>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-500 shrink-0">Order Status</span>
+                    <span className="font-semibold text-emerald-700 text-right">
+                      Pending Confirmation
+                    </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Order Date</span>
-                    <span className="font-mono text-slate-800">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-500 shrink-0">Order Date</span>
+                    <span className="font-mono text-slate-800 text-right">
                       {new Date(confirmedOrder.orderDate).toLocaleString()}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Delivery Address</span>
-                    <span className="font-medium text-slate-800 text-right max-w-[60%]">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-500 shrink-0">Delivery Address</span>
+                    <span className="font-medium text-slate-800 text-right max-w-[65%] break-words">
                       {deliveryAddress}
                     </span>
                   </div>
-                  <div className="flex justify-between pt-2 border-t border-slate-200 text-sm font-bold">
+                  <div className="flex justify-between gap-3 pt-2 border-t border-slate-200 text-sm font-bold">
                     <span className="text-[#090D16]">Total Payable</span>
                     <span className="font-mono tabular-nums text-[#2563EB]">
                       {formatPkr(confirmedOrder.totalPkr)}

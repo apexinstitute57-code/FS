@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Laptop as LaptopIcon } from 'lucide-react';
 import { Laptop } from '../types/laptop';
 import { formatPkr, getDiscountPercent } from '../data/laptops';
@@ -13,6 +13,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ laptop, onShopNow }) =
   const [imgError, setImgError] = useState(false);
   const [tilt, setTilt] = useState({ rx: 0, ry: 0 });
   const discount = getDiscountPercent(laptop.pricePkr, laptop.originalPricePkr);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [laptop.image]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();

@@ -38,3 +38,63 @@ create policy "Allow customer order insert"
     and total_price = product_price * quantity
     and order_status = 'Pending'
   );
+
+create table if not exists public.catalog_products (
+  id text primary key,
+  kind text not null check (kind in ('laptop', 'accessory')),
+  category text not null,
+  sub_type text,
+  brand text not null,
+  model text,
+  name text not null check (char_length(trim(name)) >= 2),
+  price_pkr integer not null check (price_pkr > 0),
+  original_price_pkr integer check (original_price_pkr is null or original_price_pkr >= 0),
+  availability text not null default 'Available · Confirm Stock on Order',
+  image_url text,
+  description text not null default '',
+  specs jsonb,
+  highlights jsonb,
+  collections jsonb,
+  is_custom boolean not null default false,
+  updated_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
+alter table public.catalog_products enable row level security;
+
+drop policy if exists "Public read catalog_products" on public.catalog_products;
+drop policy if exists "Public insert catalog_products" on public.catalog_products;
+drop policy if exists "Public update catalog_products" on public.catalog_products;
+drop policy if exists "Public delete catalog_products" on public.catalog_products;
+
+create policy "Public read catalog_products"
+  on public.catalog_products
+  for select
+  to anon, authenticated
+  using (true);
+
+create policy "Public insert catalog_products"
+  on public.catalog_products
+  for insert
+  to anon, authenticated
+  with check (
+    char_length(trim(id)) >= 2
+    and char_length(trim(name)) >= 2
+    and price_pkr > 0
+  );
+
+create policy "Public update catalog_products"
+  on public.catalog_products
+  for update
+  to anon, authenticated
+  using (true)
+  with check (
+    char_length(trim(name)) >= 2
+    and price_pkr > 0
+  );
+
+create policy "Public delete catalog_products"
+  on public.catalog_products
+  for delete
+  to anon, authenticated
+  using (true);

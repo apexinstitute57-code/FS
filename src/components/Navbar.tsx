@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, Search, X } from 'lucide-react';
+import { Menu, Search, SlidersHorizontal, X } from 'lucide-react';
 import { FSShopMark } from './BrandLogo';
 
 interface NavbarProps {
@@ -7,6 +7,7 @@ interface NavbarProps {
   onSearchChange: (value: string) => void;
   onNavigate: (sectionId: string, preset?: 'budget' | 'gaming' | 'all') => void;
   onShopNow: () => void;
+  onOpenCatalogManager?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -14,6 +15,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSearchChange,
   onNavigate,
   onShopNow,
+  onOpenCatalogManager,
 }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -159,7 +161,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Responsive Mobile Menu Drawer */}
       {mobileOpen && (
-        <div className="xl:hidden bg-[#0A1328] border-b border-white/10 px-4 py-4 space-y-3 shadow-2xl">
+        <div className="xl:hidden max-h-[calc(100dvh-4rem)] overflow-y-auto bg-[#0A1328] border-b border-white/10 px-4 py-4 space-y-3 shadow-2xl">
           <form onSubmit={handleSearchSubmit} className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
@@ -168,7 +170,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Search laptops, mouse, keyboards, bags..."
               aria-label="Search products"
-              className="w-full h-11 pl-10 pr-4 rounded-lg bg-white/10 border border-white/15 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:border-[#3B82F6]"
+              className="w-full h-11 pl-10 pr-4 rounded-lg bg-white/10 border border-white/15 text-base sm:text-sm text-white placeholder:text-slate-400 focus:outline-none focus:border-[#3B82F6]"
             />
           </form>
 
@@ -176,60 +178,74 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => handleLinkClick('home')}
-              className="text-left px-3 py-2.5 rounded-lg text-slate-200 hover:bg-white/10 hover:text-white cursor-pointer"
+              className="min-h-[44px] text-left px-3 py-2.5 rounded-lg text-slate-200 hover:bg-white/10 hover:text-white cursor-pointer"
             >
               Home
             </button>
             <button
               type="button"
               onClick={() => handleLinkClick('catalog', 'all')}
-              className="text-left px-3 py-2.5 rounded-lg text-slate-200 hover:bg-white/10 hover:text-white cursor-pointer"
+              className="min-h-[44px] text-left px-3 py-2.5 rounded-lg text-slate-200 hover:bg-white/10 hover:text-white cursor-pointer"
             >
               All Laptops
             </button>
             <button
               type="button"
               onClick={() => handleLinkClick('mouse-collection')}
-              className="text-left px-3 py-2.5 rounded-lg text-slate-200 hover:bg-white/10 hover:text-white cursor-pointer"
+              className="min-h-[44px] text-left px-3 py-2.5 rounded-lg text-slate-200 hover:bg-white/10 hover:text-white cursor-pointer"
             >
               Mouse Collection
             </button>
             <button
               type="button"
               onClick={() => handleLinkClick('keyboard-collection')}
-              className="text-left px-3 py-2.5 rounded-lg text-slate-200 hover:bg-white/10 hover:text-white cursor-pointer"
+              className="min-h-[44px] text-left px-3 py-2.5 rounded-lg text-slate-200 hover:bg-white/10 hover:text-white cursor-pointer"
             >
               Keyboard Collection
             </button>
             <button
               type="button"
               onClick={() => handleLinkClick('other-accessories')}
-              className="text-left px-3 py-2.5 rounded-lg text-slate-200 hover:bg-white/10 hover:text-white cursor-pointer"
+              className="min-h-[44px] text-left px-3 py-2.5 rounded-lg text-slate-200 hover:bg-white/10 hover:text-white cursor-pointer"
             >
               Other Accessories
             </button>
             <button
               type="button"
               onClick={() => handleLinkClick('brands')}
-              className="text-left px-3 py-2.5 rounded-lg text-slate-200 hover:bg-white/10 hover:text-white cursor-pointer"
+              className="min-h-[44px] text-left px-3 py-2.5 rounded-lg text-slate-200 hover:bg-white/10 hover:text-white cursor-pointer"
             >
               Laptop Brands
             </button>
             <button
               type="button"
               onClick={() => handleLinkClick('about')}
-              className="text-left px-3 py-2.5 rounded-lg text-slate-200 hover:bg-white/10 hover:text-white cursor-pointer"
+              className="min-h-[44px] text-left px-3 py-2.5 rounded-lg text-slate-200 hover:bg-white/10 hover:text-white cursor-pointer"
             >
               About Us
             </button>
             <button
               type="button"
               onClick={() => handleLinkClick('contact')}
-              className="text-left px-3 py-2.5 rounded-lg text-slate-200 hover:bg-white/10 hover:text-white cursor-pointer"
+              className="min-h-[44px] text-left px-3 py-2.5 rounded-lg text-slate-200 hover:bg-white/10 hover:text-white cursor-pointer"
             >
               Contact
             </button>
           </div>
+
+          {onOpenCatalogManager && (
+            <button
+              type="button"
+              onClick={() => {
+                setMobileOpen(false);
+                onOpenCatalogManager();
+              }}
+              className="w-full min-h-[44px] px-3.5 py-2.5 rounded-lg bg-white/10 hover:bg-[#2563EB] border border-white/15 text-xs font-semibold text-white inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
+            >
+              <SlidersHorizontal className="w-4 h-4 text-[#60A5FA]" />
+              <span>Manage Products &amp; Prices</span>
+            </button>
+          )}
         </div>
       )}
     </header>

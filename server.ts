@@ -2,7 +2,13 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import { createClient } from '@supabase/supabase-js';
+import {
+  handleCreateOrder,
+  handleDeleteCatalog,
+  handleGetCatalog,
+  handleHealthRequest,
+  handleUpsertCatalog,
+} from './server/supabase-api';
 
 dotenv.config({ path: '.env.local' });
 dotenv.config();
@@ -12,209 +18,70 @@ const __dirname = path.dirname(__filename);
 
 const PORT = Number(process.env.PORT) || 3000;
 
-interface OrderPayload {
-  customerName?: string;
-  deliveryAddress?: string;
-  contactNumber?: string;
-  productName?: string;
-  productBrand?: string;
-  productCategory?: string;
-  productPrice?: number;
-  quantity?: number;
-}
-
-function isPlaceholder(val: string): boolean {
-  if (!val) return true;
-  const lower = val.toLowerCase();
-  return (
-    lower.includes('your_supabase') ||
-    lower.includes('your-project-id') ||
-    lower.includes('your-supabase-') ||
-    lower === 'undefined' ||
-    lower === 'null'
-  );
-}
-
-function getSupabaseServerConfig() {
-  const url = (
-    process.env.SUPABASE_URL ||
-    process.env.VITE_SUPABASE_URL ||
-    ''
-  ).trim();
-  const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
-  const anonKey = (
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.VITE_SUPABASE_ANON_KEY ||
-    ''
-  ).trim();
-
-  if (isPlaceholder(url)) {
-    return { configured: false as const, url: '', key: '', isServiceRole: false };
-  }
-
-  if (!isPlaceholder(serviceRoleKey)) {
-    return { configured: true as const, url, key: serviceRoleKey, isServiceRole: true };
-  }
-
-  if (!isPlaceholder(anonKey)) {
-    return { configured: true as const, url, key: anonKey, isServiceRole: false };
-  }
-
-  return { configured: false as const, url: '', key: '', isServiceRole: false };
-}
-
 async function startServer() {
   const app = express();
-  app.use(express.json({ limit: '64kb' }));
+  app.use(express.json({ limit: '256kb' }));
 
   app.get('/api/health', (_req, res) => {
-    const supabaseCfg = getSupabaseServerConfig();
-    res.json({
-      status: 'ok',
-      store: 'FS SHOP',
-      supabaseConfigured: supabaseCfg.configured,
-    });
+    const result = handleHealthRequest();
+    res.status(result.status).json(result.body);
   });
 
   app.post('/api/orders', async (req, res) => {
     try {
-      const body = (req.body || {}) as OrderPayload;
-
-      const customerName = String(body.customerName ?? '').trim();
-      const deliveryAddress = String(body.deliveryAddress ?? '').trim();
-      const contactNumber = String(body.contactNumber ?? '').trim();
-      const productName = String(body.productName ?? '').trim();
-      const productBrand = String(body.productBrand ?? '').trim();
-      const productCategory = String(body.productCategory ?? '').trim();
-      const productPrice = Number(body.productPrice);
-      const quantity = Number(body.quantity ?? 1);
-
-      if (customerName.length < 2) {
-        return res.status(400).json({
-          saved: false,
-          error: 'Please enter your full name (at least 2 characters).',
-        });
-      }
-      if (deliveryAddress.length < 5) {
-        return res.status(400).json({
-          saved: false,
-          error: 'Please enter a complete delivery address.',
-        });
-      }
-      if (contactNumber.length < 7) {
-        return res.status(400).json({
-          saved: false,
-          error: 'Please enter a valid contact phone number (e.g. 03086421306).',
-        });
-      }
-      if (!productName || !productBrand || !productCategory) {
-        return res.status(400).json({
-          saved: false,
-          error: 'Selected product details are missing.',
-        });
-      }
-      if (!Number.isFinite(productPrice) || productPrice <= 0) {
-        return res.status(400).json({
-          saved: false,
-          error: 'Invalid product price.',
-        });
-      }
-      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 50) {
-        return res.status(400).json({
-          saved: false,
-          error: 'Quantity must be between 1 and 50.',
-        });
-      }
-
-      const supabaseCfg = getSupabaseServerConfig();
-      if (!supabaseCfg.configured) {
-        return res.status(503).json({
-          saved: false,
-          error:
-            'Supabase database is not configured yet. Follow SUPABASE_SETUP.md to add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local or Netlify Environment Variables.',
-          code: 'SUPABASE_NOT_CONFIGURED',
-        });
-      }
-
-      const createdAt = new Date().toISOString();
-      const roundedPrice = Math.round(productPrice);
-      const totalPrice = roundedPrice * quantity;
-
-      const supabase = createClient(supabaseCfg.url, supabaseCfg.key, {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-        },
-      });
-
-      const row = {
-        customer_name: customerName,
-        delivery_address: deliveryAddress,
-        contact_number: contactNumber,
-        product_name: productName,
-        product_brand: productBrand,
-        product_category: productCategory,
-        product_price: roundedPrice,
-        quantity,
-        total_price: totalPrice,
-        order_status: 'Pending',
-      };
-
-      if (supabaseCfg.isServiceRole) {
-        const { data, error } = await supabase
-          .from('orders')
-          .insert([row])
-          .select('id, created_at')
-          .single();
-
-        if (error) {
-          const friendlyError =
-            error.code === 'PGRST205' ||
-            error.message.includes("Could not find the table 'public.orders'")
-              ? 'Connected to Supabase, but the "orders" table does not exist yet. Open Supabase Dashboard → SQL Editor → New query, paste supabase-setup.sql, and click Run.'
-              : `Could not save order to Supabase: ${error.message}`;
-          return res.status(502).json({
-            saved: false,
-            error: friendlyError,
-            code: error.code || 'SUPABASE_INSERT_ERROR',
-          });
-        }
-
-        return res.status(201).json({
-          saved: true,
-          orderId: data.id,
-          orderDate: data.created_at,
-          totalPkr: totalPrice,
-        });
-      }
-
-      const { error } = await supabase.from('orders').insert([row]);
-      if (error) {
-        const friendlyError =
-          error.code === 'PGRST205' ||
-          error.message.includes("Could not find the table 'public.orders'")
-            ? 'Connected to Supabase, but the "orders" table does not exist yet. Open Supabase Dashboard → SQL Editor → New query, paste supabase-setup.sql, and click Run.'
-            : error.code === '42501' || error.message.toLowerCase().includes('row-level security')
-              ? 'Supabase RLS blocked the insert. Re-run supabase-setup.sql in Supabase SQL Editor to enable the INSERT policy on "orders".'
-              : `Could not save order to Supabase: ${error.message}`;
-        return res.status(502).json({
-          saved: false,
-          error: friendlyError,
-          code: error.code || 'SUPABASE_INSERT_ERROR',
-        });
-      }
-
-      return res.status(201).json({
-        saved: true,
-        orderId: `FS-${Date.now().toString(36).toUpperCase()}`,
-        orderDate: createdAt,
-        totalPkr: totalPrice,
-      });
+      const result = await handleCreateOrder(req.body);
+      return res.status(result.status).json(result.body);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unexpected server error';
       return res.status(500).json({
         saved: false,
         error: `Order submission failed: ${message}`,
+        code: 'INTERNAL_SERVER_ERROR',
+      });
+    }
+  });
+
+  app.get('/api/catalog', async (_req, res) => {
+    try {
+      const result = await handleGetCatalog();
+      return res.status(result.status).json(result.body);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unexpected server error';
+      return res.status(500).json({
+        ok: false,
+        error: `Failed to load catalog updates: ${message}`,
+        code: 'INTERNAL_SERVER_ERROR',
+      });
+    }
+  });
+
+  const handleCatalogWrite = async (req: express.Request, res: express.Response) => {
+    try {
+      const result = await handleUpsertCatalog(req.body);
+      return res.status(result.status).json(result.body);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unexpected server error';
+      return res.status(500).json({
+        saved: false,
+        error: `Catalog update failed: ${message}`,
+        code: 'INTERNAL_SERVER_ERROR',
+      });
+    }
+  };
+
+  app.post('/api/catalog', handleCatalogWrite);
+  app.put('/api/catalog', handleCatalogWrite);
+  app.patch('/api/catalog', handleCatalogWrite);
+
+  app.delete('/api/catalog', async (req, res) => {
+    try {
+      const result = await handleDeleteCatalog(req.body);
+      return res.status(result.status).json(result.body);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unexpected server error';
+      return res.status(500).json({
+        saved: false,
+        error: `Catalog delete failed: ${message}`,
         code: 'INTERNAL_SERVER_ERROR',
       });
     }

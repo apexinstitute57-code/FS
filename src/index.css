@@ -11,6 +11,7 @@
     font-family: var(--font-sans);
     background-color: #f8fafc;
     color: #090d16;
+    overflow-x: clip;
   }
 
   h1,

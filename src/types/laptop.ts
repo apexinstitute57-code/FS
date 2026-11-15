@@ -110,3 +110,32 @@ export interface OrderSubmissionResponse {
   error?: string;
   code?: string;
 }
+
+export interface CatalogProductRecord {
+  id: string;
+  kind: 'laptop' | 'accessory';
+  category: string;
+  sub_type?: string | null;
+  brand: string;
+  model?: string | null;
+  name: string;
+  price_pkr: number;
+  original_price_pkr?: number | null;
+  availability: string;
+  image_url?: string | null;
+  description: string;
+  specs?: Record<string, string> | null;
+  highlights?: AccessorySpec[] | null;
+  collections?: string[] | null;
+  is_custom: boolean;
+  updated_at?: string;
+  created_at?: string;
+}
+
+export interface CatalogMutationResponse {
+  saved: boolean;
+  items?: CatalogProductRecord[];
+  error?: string;
+  code?: string;
+}
+

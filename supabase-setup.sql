@@ -4,11 +4,14 @@
 -- How to run this file:
 -- 1. Open your Supabase Dashboard -> SQL Editor -> New Query.
 -- 2. Copy and paste this entire file into the editor.
--- 3. Click "Run" to create the orders table and secure RLS policies.
+-- 3. Click "Run" to create the orders and catalog_products tables + RLS policies.
 -- ============================================================================
 
 create extension if not exists pgcrypto;
 
+-- ----------------------------------------------------------------------------
+-- 1. CUSTOMER ORDERS TABLE
+-- ----------------------------------------------------------------------------
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
   customer_name text not null check (char_length(trim(customer_name)) >= 2),
@@ -24,14 +27,11 @@ create table if not exists public.orders (
   created_at timestamptz not null default now()
 );
 
--- Enable Row Level Security (RLS)
 alter table public.orders enable row level security;
 
--- Remove old policies if re-running this script
 drop policy if exists "Allow validated public order inserts" on public.orders;
 drop policy if exists "Allow customer order insert" on public.orders;
 
--- Secure INSERT policy for customer orders (anon & authenticated shoppers)
 create policy "Allow customer order insert"
   on public.orders
   for insert
@@ -50,8 +50,67 @@ create policy "Allow customer order insert"
     and order_status = 'Pending'
   );
 
--- IMPORTANT SECURITY RULE:
--- No SELECT, UPDATE, or DELETE policies are created for the "anon" role.
--- This ensures anonymous website visitors CANNOT read other customers' names,
--- addresses, or phone numbers, and CANNOT modify or delete existing orders.
--- Store owner Fiza can view and manage all orders inside Supabase Table Editor.
+-- Note: No public SELECT/UPDATE/DELETE on public.orders so customer PII stays private.
+
+-- ----------------------------------------------------------------------------
+-- 2. CATALOG PRODUCTS & LIVE PRICE/CONTENT UPDATES TABLE (Visible to all visitors)
+-- ----------------------------------------------------------------------------
+create table if not exists public.catalog_products (
+  id text primary key,
+  kind text not null check (kind in ('laptop', 'accessory')),
+  category text not null,
+  sub_type text,
+  brand text not null,
+  model text,
+  name text not null check (char_length(trim(name)) >= 2),
+  price_pkr integer not null check (price_pkr > 0),
+  original_price_pkr integer check (original_price_pkr is null or original_price_pkr >= 0),
+  availability text not null default 'Available · Confirm Stock on Order',
+  image_url text,
+  description text not null default '',
+  specs jsonb,
+  highlights jsonb,
+  collections jsonb,
+  is_custom boolean not null default false,
+  updated_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
+alter table public.catalog_products enable row level security;
+
+drop policy if exists "Public read catalog_products" on public.catalog_products;
+drop policy if exists "Public insert catalog_products" on public.catalog_products;
+drop policy if exists "Public update catalog_products" on public.catalog_products;
+drop policy if exists "Public delete catalog_products" on public.catalog_products;
+
+create policy "Public read catalog_products"
+  on public.catalog_products
+  for select
+  to anon, authenticated
+  using (true);
+
+create policy "Public insert catalog_products"
+  on public.catalog_products
+  for insert
+  to anon, authenticated
+  with check (
+    char_length(trim(id)) >= 2
+    and char_length(trim(name)) >= 2
+    and price_pkr > 0
+  );
+
+create policy "Public update catalog_products"
+  on public.catalog_products
+  for update
+  to anon, authenticated
+  using (true)
+  with check (
+    char_length(trim(name)) >= 2
+    and price_pkr > 0
+  );
+
+create policy "Public delete catalog_products"
+  on public.catalog_products
+  for delete
+  to anon, authenticated
+  using (true);
